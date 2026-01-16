@@ -1,0 +1,262 @@
+{% extends 'admin.twig' %}
+
+{% set title %}{{ 'IpToUserId_MenuTitle'|translate }}{% endset %}
+
+{% block content %}
+<div class="ipToUserId">
+    <div id="notificationContainer"></div>
+
+    <h2>{{ 'IpToUserId_MenuTitle'|translate }}</h2>
+    <p class="description">{{ 'IpToUserId_Description'|translate }}</p>
+
+    {# Add Single Mapping Form #}
+    <div class="card">
+        <div class="card-content">
+            <h3>{{ 'IpToUserId_AddMapping'|translate }}</h3>
+            <div class="row">
+                <div class="col s12 m5">
+                    <label for="newIpAddress">{{ 'IpToUserId_IpAddress'|translate }}</label>
+                    <input type="text" id="newIpAddress" placeholder="192.168.1.1 {{ 'General_Or'|translate }} 192.168.1.0/24" />
+                </div>
+                <div class="col s12 m5">
+                    <label for="newUserIdentifier">{{ 'IpToUserId_UserIdentifier'|translate }}</label>
+                    <input type="text" id="newUserIdentifier" placeholder="{{ 'IpToUserId_UserIdentifierPlaceholder'|translate }}" />
+                </div>
+                <div class="col s12 m2">
+                    <button type="button" id="addMappingBtn" class="btn" style="margin-top: 25px;">
+                        {{ 'General_Add'|translate }}
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# Bulk Import Form #}
+    <div class="card" style="margin-top: 20px;">
+        <div class="card-content">
+            <h3>{{ 'IpToUserId_BulkImport'|translate }}</h3>
+            <p>{{ 'IpToUserId_BulkImportHelp'|translate }}</p>
+            <div class="row">
+                <div class="col s12">
+                    <textarea id="bulkInput" rows="5" placeholder="192.168.1.1,John
+192.168.2.0/24,Office
+10.0.0.1,Admin"></textarea>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col s12">
+                    <button type="button" id="bulkImportBtn" class="btn">
+                        {{ 'IpToUserId_ImportMappings'|translate }}
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# Existing Mappings Table #}
+    <div class="card" style="margin-top: 20px;">
+        <div class="card-content">
+            <h3>{{ 'IpToUserId_ExistingMappings'|translate }} (<span id="mappingCount">{{ mappings|length }}</span>)</h3>
+
+            {% if mappings|length > 0 %}
+            <table class="entityTable dataTable" id="mappingsTable">
+                <thead>
+                    <tr>
+                        <th>{{ 'IpToUserId_IpAddress'|translate }}</th>
+                        <th>{{ 'IpToUserId_Type'|translate }}</th>
+                        <th>{{ 'IpToUserId_UserIdentifier'|translate }}</th>
+                        <th>{{ 'IpToUserId_DateAdded'|translate }}</th>
+                        <th>{{ 'General_Actions'|translate }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for mapping in mappings %}
+                    <tr data-id="{{ mapping.id }}">
+                        <td class="ip-address">{{ mapping.ip_address }}</td>
+                        <td>{{ mapping.is_range ? 'IpToUserId_Range'|translate : 'IpToUserId_Exact'|translate }}</td>
+                        <td class="user-identifier">{{ mapping.user_identifier }}</td>
+                        <td>{{ mapping.date_added }}</td>
+                        <td>
+                            <button type="button" class="btn-flat deleteMapping" title="{{ 'General_Delete'|translate }}">
+                                <span class="icon-delete"></span>
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p id="noMappings">{{ 'IpToUserId_NoMappings'|translate }}</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var nonce = '{{ nonce }}';
+
+    function showNotification(message, context) {
+        var notification = piwikHelper.getNotification();
+        notification.show(message, {
+            context: context || 'success',
+            type: 'transient',
+            id: 'IpToUserIdNotification'
+        });
+        notification.scrollToNotification('IpToUserIdNotification');
+    }
+
+    function refreshMappings() {
+        // Reload the page to refresh the table
+        window.location.reload();
+    }
+
+    // Add single mapping
+    $('#addMappingBtn').on('click', function() {
+        var ip = $('#newIpAddress').val().trim();
+        var userId = $('#newUserIdentifier').val().trim();
+
+        if (!ip || !userId) {
+            showNotification('{{ 'IpToUserId_FillAllFields'|translate }}', 'error');
+            return;
+        }
+
+        var btn = $(this);
+        btn.prop('disabled', true);
+
+        var ajax = new ajaxHelper();
+        ajax.setUrl('index.php');
+        ajax.addParams({
+            module: 'API',
+            method: 'IpToUserId.addMapping',
+            ipAddress: ip,
+            userIdentifier: userId,
+            format: 'JSON',
+            token_auth: piwik.token_auth
+        }, 'post');
+        ajax.setCallback(function(response) {
+            btn.prop('disabled', false);
+            showNotification('{{ 'IpToUserId_MappingAdded'|translate }}', 'success');
+            refreshMappings();
+        });
+        ajax.setErrorCallback(function(xhr, status, error) {
+            btn.prop('disabled', false);
+            var msg = xhr.responseJSON && xhr.responseJSON.message ? xhr.responseJSON.message : error;
+            showNotification('{{ 'General_Error'|translate }}: ' + msg, 'error');
+        });
+        ajax.send();
+    });
+
+    // Bulk import
+    $('#bulkImportBtn').on('click', function() {
+        var bulkInput = $('#bulkInput').val().trim();
+
+        if (!bulkInput) {
+            showNotification('{{ 'IpToUserId_EnterBulkData'|translate }}', 'error');
+            return;
+        }
+
+        var btn = $(this);
+        btn.prop('disabled', true);
+
+        var ajax = new ajaxHelper();
+        ajax.setUrl('index.php');
+        ajax.addParams({
+            module: 'API',
+            method: 'IpToUserId.addBulkMappings',
+            bulkInput: bulkInput,
+            format: 'JSON',
+            token_auth: piwik.token_auth
+        }, 'post');
+        ajax.setCallback(function(response) {
+            btn.prop('disabled', false);
+            var msg = response.added + ' {{ 'IpToUserId_MappingsAdded'|translate }}';
+            if (response.errors && response.errors.length > 0) {
+                msg += '\n{{ 'General_Errors'|translate }}: ' + response.errors.join(', ');
+            }
+            showNotification(msg, response.errors && response.errors.length > 0 ? 'warning' : 'success');
+            if (response.added > 0) {
+                refreshMappings();
+            }
+        });
+        ajax.setErrorCallback(function(xhr, status, error) {
+            btn.prop('disabled', false);
+            showNotification('{{ 'General_Error'|translate }}: ' + error, 'error');
+        });
+        ajax.send();
+    });
+
+    // Delete mapping
+    $(document).on('click', '.deleteMapping', function() {
+        if (!confirm('{{ 'IpToUserId_DeleteConfirm'|translate }}')) {
+            return;
+        }
+
+        var row = $(this).closest('tr');
+        var id = row.data('id');
+
+        var ajax = new ajaxHelper();
+        ajax.setUrl('index.php');
+        ajax.addParams({
+            module: 'API',
+            method: 'IpToUserId.deleteMapping',
+            id: id,
+            format: 'JSON',
+            token_auth: piwik.token_auth
+        }, 'post');
+        ajax.setCallback(function(response) {
+            row.fadeOut(function() {
+                row.remove();
+                var count = $('#mappingsTable tbody tr').length;
+                $('#mappingCount').text(count);
+                if (count === 0) {
+                    $('#mappingsTable').hide();
+                    $('#noMappings').show();
+                }
+            });
+            showNotification('{{ 'IpToUserId_MappingDeleted'|translate }}', 'success');
+        });
+        ajax.setErrorCallback(function(xhr, status, error) {
+            showNotification('{{ 'General_Error'|translate }}: ' + error, 'error');
+        });
+        ajax.send();
+    });
+})();
+</script>
+
+<style>
+.ipToUserId .card {
+    background: #fff;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    padding: 20px;
+}
+.ipToUserId .card h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+}
+.ipToUserId .description {
+    color: #666;
+    margin-bottom: 20px;
+}
+.ipToUserId textarea {
+    width: 100%;
+    font-family: monospace;
+}
+.ipToUserId .entityTable {
+    width: 100%;
+}
+.ipToUserId .entityTable th,
+.ipToUserId .entityTable td {
+    padding: 10px;
+    text-align: left;
+}
+.ipToUserId .entityTable tbody tr:hover {
+    background: #f5f5f5;
+}
+.ipToUserId .deleteMapping {
+    cursor: pointer;
+    color: #d32f2f;
+}
+</style>
+{% endblock %}

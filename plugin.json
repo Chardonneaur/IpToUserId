@@ -1,0 +1,22 @@
+{
+    "name": "IpToUserId",
+    "description": "Map IP addresses to custom user identifiers. Visitors from mapped IPs will automatically be assigned the configured user ID.",
+    "version": "1.0.0",
+    "theme": false,
+    "require": {
+        "matomo": ">=5.0.0,<6.0.0"
+    },
+    "authors": [
+        {
+            "name": "Chardonneaur",
+            "homepage": "https://github.com/Chardonneaur"
+        }
+    ],
+    "license": "GPL v3+",
+    "homepage": "https://github.com/Chardonneaur/IpToUserId",
+    "support": {
+        "issues": "https://github.com/Chardonneaur/IpToUserId/issues",
+        "source": "https://github.com/Chardonneaur/IpToUserId"
+    },
+    "keywords": ["ip", "user id", "visitor", "identification", "privacy", "mapping"]
+}
