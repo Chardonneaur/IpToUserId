@@ -9,6 +9,7 @@
 
 namespace Piwik\Plugins\IpToUserId;
 
+use Piwik\Nonce;
 use Piwik\Piwik;
 
 /**
@@ -38,9 +39,10 @@ class API extends \Piwik\Plugin\API
      * @param string $userIdentifier User identifier to assign
      * @return int The ID of the new mapping
      */
-    public function addMapping($ipAddress, $userIdentifier)
+    public function addMapping($ipAddress, $userIdentifier, $nonce)
     {
         Piwik::checkUserHasSuperUserAccess();
+        Nonce::checkNonce(Controller::NONCE_NAME, $nonce);
 
         $model = new Model();
         return $model->addMapping($ipAddress, $userIdentifier);
@@ -52,9 +54,10 @@ class API extends \Piwik\Plugin\API
      * @param string $bulkInput One mapping per line in format: IP,UserID
      * @return array Results with 'added' count and 'errors' array
      */
-    public function addBulkMappings($bulkInput)
+    public function addBulkMappings($bulkInput, $nonce)
     {
         Piwik::checkUserHasSuperUserAccess();
+        Nonce::checkNonce(Controller::NONCE_NAME, $nonce);
 
         $model = new Model();
         return $model->addBulkMappings($bulkInput);
@@ -65,9 +68,10 @@ class API extends \Piwik\Plugin\API
      *
      * @param int $id Mapping ID
      */
-    public function deleteMapping($id)
+    public function deleteMapping($id, $nonce)
     {
         Piwik::checkUserHasSuperUserAccess();
+        Nonce::checkNonce(Controller::NONCE_NAME, $nonce);
 
         $model = new Model();
         $model->deleteMapping($id);
@@ -80,9 +84,10 @@ class API extends \Piwik\Plugin\API
      * @param string $ipAddress IP address or CIDR range
      * @param string $userIdentifier User identifier to assign
      */
-    public function updateMapping($id, $ipAddress, $userIdentifier)
+    public function updateMapping($id, $ipAddress, $userIdentifier, $nonce)
     {
         Piwik::checkUserHasSuperUserAccess();
+        Nonce::checkNonce(Controller::NONCE_NAME, $nonce);
 
         $model = new Model();
         $model->updateMapping($id, $ipAddress, $userIdentifier);

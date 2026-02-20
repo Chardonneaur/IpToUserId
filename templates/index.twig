@@ -96,6 +96,15 @@
 (function() {
     var nonce = '{{ nonce }}';
 
+    function escapeHtml(value) {
+        return String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
     function showNotification(message, context) {
         var notification = piwikHelper.getNotification();
         notification.show(message, {
@@ -131,8 +140,8 @@
             method: 'IpToUserId.addMapping',
             ipAddress: ip,
             userIdentifier: userId,
-            format: 'JSON',
-            token_auth: piwik.token_auth
+            nonce: nonce,
+            format: 'JSON'
         }, 'post');
         ajax.setCallback(function(response) {
             btn.prop('disabled', false);
@@ -142,7 +151,7 @@
         ajax.setErrorCallback(function(xhr, status, error) {
             btn.prop('disabled', false);
             var msg = xhr.responseJSON && xhr.responseJSON.message ? xhr.responseJSON.message : error;
-            showNotification('{{ 'General_Error'|translate }}: ' + msg, 'error');
+            showNotification('{{ 'General_Error'|translate }}: ' + escapeHtml(msg), 'error');
         });
         ajax.send();
     });
@@ -165,14 +174,14 @@
             module: 'API',
             method: 'IpToUserId.addBulkMappings',
             bulkInput: bulkInput,
-            format: 'JSON',
-            token_auth: piwik.token_auth
+            nonce: nonce,
+            format: 'JSON'
         }, 'post');
         ajax.setCallback(function(response) {
             btn.prop('disabled', false);
             var msg = response.added + ' {{ 'IpToUserId_MappingsAdded'|translate }}';
             if (response.errors && response.errors.length > 0) {
-                msg += '\n{{ 'General_Errors'|translate }}: ' + response.errors.join(', ');
+                msg += '\n{{ 'General_Errors'|translate }}: ' + response.errors.map(escapeHtml).join(', ');
             }
             showNotification(msg, response.errors && response.errors.length > 0 ? 'warning' : 'success');
             if (response.added > 0) {
@@ -181,7 +190,7 @@
         });
         ajax.setErrorCallback(function(xhr, status, error) {
             btn.prop('disabled', false);
-            showNotification('{{ 'General_Error'|translate }}: ' + error, 'error');
+            showNotification('{{ 'General_Error'|translate }}: ' + escapeHtml(error), 'error');
         });
         ajax.send();
     });
@@ -201,8 +210,8 @@
             module: 'API',
             method: 'IpToUserId.deleteMapping',
             id: id,
-            format: 'JSON',
-            token_auth: piwik.token_auth
+            nonce: nonce,
+            format: 'JSON'
         }, 'post');
         ajax.setCallback(function(response) {
             row.fadeOut(function() {
@@ -217,7 +226,7 @@
             showNotification('{{ 'IpToUserId_MappingDeleted'|translate }}', 'success');
         });
         ajax.setErrorCallback(function(xhr, status, error) {
-            showNotification('{{ 'General_Error'|translate }}: ' + error, 'error');
+            showNotification('{{ 'General_Error'|translate }}: ' + escapeHtml(error), 'error');
         });
         ajax.send();
     });

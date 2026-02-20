@@ -1,5 +1,11 @@
 # IP Address to User ID
 
+> **Warning**
+>
+> This plugin is experimental and was coded using [Claude Code](https://claude.ai).
+> It is provided without any warranty regarding quality, stability, or performance.
+> This is a community project and is not officially supported by Matomo.
+
 ## Description
 
 This Matomo plugin allows you to map IP addresses to custom user identifiers. When a visitor accesses your site from a mapped IP address, they will automatically be assigned the configured user ID in Matomo.
@@ -16,6 +22,7 @@ This is useful for:
 - Bulk import via textarea (one mapping per line)
 - Admin interface under Privacy settings
 - Automatic user ID assignment during tracking
+- Live visitor log/profile enrichment for already tracked visits that match a configured IP mapping
 
 ## Installation
 

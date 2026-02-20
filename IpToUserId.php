@@ -12,6 +12,7 @@ namespace Piwik\Plugins\IpToUserId;
 use Piwik\Plugin;
 use Piwik\Db;
 use Piwik\Common;
+use Piwik\Plugins\IpToUserId\Live\VisitorDetails as IpToUserIdVisitorDetails;
 
 class IpToUserId extends Plugin
 {
@@ -19,6 +20,8 @@ class IpToUserId extends Plugin
     {
         return [
             'Tracker.newVisitorInformation' => 'enrichVisitorWithUserId',
+            'Live.addVisitorDetails' => 'addVisitorDetails',
+            'Live.filterVisitorDetails' => 'moveVisitorDetailsToEnd',
             'Translate.getClientSideTranslationKeys' => 'getClientSideTranslationKeys',
         ];
     }
@@ -74,5 +77,26 @@ class IpToUserId extends Plugin
         $translationKeys[] = 'IpToUserId_DeleteConfirm';
         $translationKeys[] = 'IpToUserId_MappingAdded';
         $translationKeys[] = 'IpToUserId_MappingDeleted';
+    }
+
+    public function addVisitorDetails(&$visitorDetails)
+    {
+        $visitorDetails[] = new IpToUserIdVisitorDetails();
+    }
+
+    public function moveVisitorDetailsToEnd(&$visitorDetails)
+    {
+        $ipToUserDetails = [];
+
+        foreach ($visitorDetails as $index => $detailsInstance) {
+            if ($detailsInstance instanceof IpToUserIdVisitorDetails) {
+                $ipToUserDetails[] = $detailsInstance;
+                unset($visitorDetails[$index]);
+            }
+        }
+
+        foreach ($ipToUserDetails as $detailsInstance) {
+            $visitorDetails[] = $detailsInstance;
+        }
     }
 }

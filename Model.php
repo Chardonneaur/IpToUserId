@@ -12,8 +12,6 @@ namespace Piwik\Plugins\IpToUserId;
 use Piwik\Common;
 use Piwik\Db;
 use Piwik\Date;
-use Piwik\Network\IP;
-
 class Model
 {
     private $table;
@@ -43,17 +41,13 @@ class Model
         if (empty($ipAddress) || empty($userIdentifier)) {
             throw new \Exception('IP address and user identifier are required');
         }
+        $this->assertValidUserIdentifier($userIdentifier);
 
-        // Check if it's a CIDR range
-        $isRange = strpos($ipAddress, '/') !== false;
-        $rangeStart = null;
-        $rangeEnd = null;
-
-        if ($isRange) {
-            $range = $this->parseCidrRange($ipAddress);
-            $rangeStart = $range['start'];
-            $rangeEnd = $range['end'];
-        }
+        $mapping = $this->parseIpOrCidr($ipAddress);
+        $ipAddress = $mapping['ipAddress'];
+        $isRange = $mapping['isRange'];
+        $rangeStart = $mapping['rangeStart'];
+        $rangeEnd = $mapping['rangeEnd'];
 
         // Check for duplicate
         $existing = Db::fetchOne(
@@ -135,15 +129,21 @@ class Model
     {
         $ipAddress = trim($ipAddress);
         $userIdentifier = trim($userIdentifier);
+        $this->assertValidUserIdentifier($userIdentifier);
 
-        $isRange = strpos($ipAddress, '/') !== false;
-        $rangeStart = null;
-        $rangeEnd = null;
+        $mapping = $this->parseIpOrCidr($ipAddress);
+        $ipAddress = $mapping['ipAddress'];
+        $isRange = $mapping['isRange'];
+        $rangeStart = $mapping['rangeStart'];
+        $rangeEnd = $mapping['rangeEnd'];
 
-        if ($isRange) {
-            $range = $this->parseCidrRange($ipAddress);
-            $rangeStart = $range['start'];
-            $rangeEnd = $range['end'];
+        $existing = Db::fetchOne(
+            "SELECT id FROM `{$this->table}` WHERE ip_address = ? AND id <> ?",
+            [$ipAddress, (int)$id]
+        );
+
+        if ($existing) {
+            throw new \Exception("IP address '$ipAddress' already exists");
         }
 
         Db::query(
@@ -191,8 +191,12 @@ class Model
     private function parseCidrRange($cidr)
     {
         $parts = explode('/', $cidr);
-        $ip = $parts[0];
-        $prefix = isset($parts[1]) ? (int)$parts[1] : (strpos($ip, ':') !== false ? 128 : 32);
+        $ip = trim($parts[0]);
+        $prefixValue = isset($parts[1]) ? trim($parts[1]) : '';
+        if ($prefixValue === '' || !ctype_digit($prefixValue)) {
+            throw new \Exception("Invalid prefix length in CIDR: $cidr");
+        }
+        $prefix = (int)$prefixValue;
 
         $ipBinary = inet_pton($ip);
         if ($ipBinary === false) {
@@ -224,5 +228,52 @@ class Model
             'start' => $start,
             'end' => $end
         ];
+    }
+
+    private function parseIpOrCidr($ipAddress)
+    {
+        if (strpos($ipAddress, '/') !== false) {
+            $range = $this->parseCidrRange($ipAddress);
+            $parts = explode('/', $ipAddress, 2);
+            $normalizedIp = $this->normalizeExactIp(trim($parts[0]));
+            $prefix = trim($parts[1]);
+
+            return [
+                'ipAddress' => $normalizedIp . '/' . $prefix,
+                'isRange' => 1,
+                'rangeStart' => $range['start'],
+                'rangeEnd' => $range['end'],
+            ];
+        }
+
+        $normalizedIp = $this->normalizeExactIp($ipAddress);
+
+        return [
+            'ipAddress' => $normalizedIp,
+            'isRange' => 0,
+            'rangeStart' => null,
+            'rangeEnd' => null,
+        ];
+    }
+
+    private function normalizeExactIp($ipAddress)
+    {
+        $binary = @inet_pton($ipAddress);
+        if ($binary === false) {
+            throw new \Exception("Invalid IP address: $ipAddress");
+        }
+
+        return inet_ntop($binary);
+    }
+
+    private function assertValidUserIdentifier($userIdentifier)
+    {
+        if ($userIdentifier === '') {
+            throw new \Exception('User identifier is required');
+        }
+
+        if (Common::mb_strlen($userIdentifier) > 200) {
+            throw new \Exception('User identifier must be 200 characters or less');
+        }
     }
 }
